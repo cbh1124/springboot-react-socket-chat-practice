@@ -21,10 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 *
 * */
 @Controller
-//@RequiredArgsConstructor // 이게 무슨의미인지 알아보자
+//@RequiredArgsConstructor
+/*
+* @RequiredArgsConstructor 이 어노테이션은 초기화 되지 않은 final 필드나 , @Nonnull이 붙은 필드에 대해 생성자를 생성해줍니다.
+* 주로 의존성 주입 편의성을 위해 사용되곤 합니다.
+* */
 public class ChatController {
 
-    @Autowired // 뭔지 모르겠다.
+    @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
 
     @MessageMapping("/message") // /app/message 어노테이션에 발행하는 경로를 @SendTo와 @SendToUser어노테이션에 구독 경로를 작성합니다.
