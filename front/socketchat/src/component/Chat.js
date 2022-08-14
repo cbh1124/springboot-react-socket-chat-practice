@@ -9,11 +9,11 @@ import SockJS from 'sockjs-client';
 var stompClient = null;
 
 const Chat = () => {
-    const [privateChats, setPrivateChats] = useState(new Map());     
+    const [privateChats, setPrivateChats] = useState(new Map());     // 개인 채팅 메세지 
 
-    const [publicChats, setPublicChats] = useState([]); 
+    const [publicChats, setPublicChats] = useState([]);  // 채팅 메세지 
 
-    const [tab,setTab] = useState("CHATROOM");
+    const [tab,setTab] = useState("CHATROOM");      // CHATROOM 상태 
 
     const [userData, setUserData] = useState({
         username: '',
@@ -60,10 +60,11 @@ const Chat = () => {
         // 두번째 인자는 구독한 후에 실행될 콜백함수이며 구독 이후 
         // 세번째 인자는 지금은 없지만 subscribe 프레임을 전송할 때 같이 보내는 헤더를 설정하는 곳이다. 
         // 상대방으로부터 메세지를 수신 받을 때 마다 해당 콜백함수가 실행된다. 
-        stompClient.subscribe('/chatroom/public', onMessageReceived);
-        stompClient.subscribe('/user/'+userData.username+'/private', onPrivateMessage);
+        stompClient.subscribe('/chatroom/public', onMessageReceived); // 메세지 수신 액션 구독
+        stompClient.subscribe('/user/'+userData.username+'/private', onPrivateMessage); // 개인 메세지 수신 액션 구독
         userJoin();
     }
+
     // 연결될 경우 userJoin을 통해서 JOIN 상태 값과 유저이름을 전송한다.  /app/message에 전송 
     const userJoin= () =>{
           var chatMessage = {
@@ -108,7 +109,8 @@ const Chat = () => {
     const onError = (err) => {
         console.log(err);
     }
-
+ 
+    // handelMessage를 onchange를 통해서 값 state로 메세지 전달 
     const handleMessage =(event)=>{
         const {value}=event.target;
         setUserData({...userData,"message": value});
@@ -156,32 +158,48 @@ const Chat = () => {
 
     return (
         <div className="container">
-            {userData.connected?
+            {userData.connected?   // 삼항 연산자 만약 연결이되면 아래 화면 연결 안되면 register 화면 
+
             <div className="chat-box">
                 <div className="member-list">
-                    <ul>
+                    <ul>       
+                        {/*  왼쪽 상단 네비게이션 CHATROOM */}  {/*  왼쪽 상단 네비게이션 CHATROOM active 상태라면 member class 작동 */} 
                         <li onClick={()=>{setTab("CHATROOM")}} className={`member ${tab==="CHATROOM" && "active"}`}>Chatroom</li>
+                        {/*...은 참조형이다. 기존 privateChats의 값에서 가져온다. map함수이므로 keys를 통해서 가져온다.*/}
                         {[...privateChats.keys()].map((name,index)=>(
                             <li onClick={()=>{setTab(name)}} className={`member ${tab===name && "active"}`} key={index}>{name}</li>
                         ))}
                     </ul>
                 </div>
+                {/* true && expression은 항상 expression으로 평가되고, false&&expression은 항상 false로 평가됩니다. 
+                따라서 && 뒤의 엘리먼트는 조건이 true일때 출력이 됨 조건이 false라면 작동 안됨 */}
+
+                {/* tab이 CHATROOM이라면  */}
                 {tab==="CHATROOM" && <div className="chat-content">
                     <ul className="chat-messages">
+
                         {publicChats.map((chat,index)=>(
+                            // chat.senderName(보내는사람)과 내가 아이디로 등록한 이름이 같다면 (본인 메시지 표시)
                             <li className={`message ${chat.senderName === userData.username && "self"}`} key={index}>
+                                {/* chat.senderName(보내는사람)과 내가 아이디로 등록한 이름이 같지 않다면 (상대 메시지 표시) */}
                                 {chat.senderName !== userData.username && <div className="avatar">{chat.senderName}</div>}
+                                {/* index에 맞게 chat.message */}
                                 <div className="message-data">{chat.message}</div>
+                                {/* chat.senderName(보내는사람)과 내가 아이디로 등록한 이름이 같다면 (상대 메시지 표시) */}
                                 {chat.senderName === userData.username && <div className="avatar self">{chat.senderName}</div>}
                             </li>
                         ))}
                     </ul>
-
+                            
                     <div className="send-message">
+                        {/* state에 message 전달   onChange를 통해서 메시지 전달 */}
                         <input type="text" className="input-message" placeholder="enter the message" value={userData.message} onChange={handleMessage} /> 
+                        {/* 버튼 누르면 서버로 유저 정보 및 액션 상태 유저 메시지를 전달 */}
                         <button type="button" className="send-button" onClick={sendValue}>send</button>
                     </div>
                 </div>}
+
+                {/* tab이 CHATROOM이 아니라면 개인 메시지 상태가 됨 */}
                 {tab!=="CHATROOM" && <div className="chat-content">
                     <ul className="chat-messages">
                         {[...privateChats.get(tab)].map((chat,index)=>(
@@ -198,6 +216,7 @@ const Chat = () => {
                         <button type="button" className="send-button" onClick={sendPrivateValue}>send</button>
                     </div>
                 </div>}
+
             </div>
             :
             <div className="register">
@@ -213,7 +232,8 @@ const Chat = () => {
                 <button type="button" onClick={registerUser}>
                         connect
                 </button> 
-            </div>}
+            </div>} {/* {userData.connected? end */}
+            
         </div>
     )
 }
