@@ -5,7 +5,6 @@ import SockJS from 'sockjs-client';
 // 벡엔드 스프링 쪽에서 stomp라는 서브 프로토콜을 사용하기로 결정이 되었으므로 
 // 웹소켓의 서브 프로토콜인 stomp 위에서 sockJS가 정상적으로 작동되고 
 // stomp 프로토콜 환경에서 stompJS에서 제공하는 프로토콜 연결, 메시지 전송, 상대방 구독 기능을 제공한다.
-
 var stompClient = null;
 
 const Chat = () => {
@@ -61,7 +60,7 @@ const Chat = () => {
         // 세번째 인자는 지금은 없지만 subscribe 프레임을 전송할 때 같이 보내는 헤더를 설정하는 곳이다. 
         // 상대방으로부터 메세지를 수신 받을 때 마다 해당 콜백함수가 실행된다. 
         stompClient.subscribe('/chatroom/public', onMessageReceived); // 메세지 수신 액션 구독
-        stompClient.subscribe('/user/'+userData.username+'/private', onPrivateMessage); // 개인 메세지 수신 액션 구독
+        stompClient.subscribe('/user/'+userData.username+'/private', onPrivateMessage); // 개인 메세지 수신 액션 구독 해당 메시지에 데이터 전달
         userJoin();
     }
 
@@ -74,13 +73,16 @@ const Chat = () => {
           stompClient.send("/app/message", {}, JSON.stringify(chatMessage));
     }
 
-    // 메시지 수신 
+    // 메시지 수신 전달 받은 payload 확인 
     const onMessageReceived = (payload)=>{
         var payloadData = JSON.parse(payload.body);
         // eslint-disable-next-line default-case
         switch(payloadData.status){
+            // 전달받은 payloadData.status 값이 조건 값 -> 조건 값에 따라 case 구분
             case "JOIN":
+                // JOIN일 경우 만약 privateChats의 키 값이 
                 if(!privateChats.get(payloadData.senderName)){
+                    //privateChats
                     privateChats.set(payloadData.senderName,[]);
                     setPrivateChats(new Map(privateChats));
                 }
@@ -91,16 +93,21 @@ const Chat = () => {
                 break;
         }
     }
-    
+    //  전달 받은 payload 확인 
     const onPrivateMessage = (payload)=>{
         console.log(payload);
         var payloadData = JSON.parse(payload.body);
+        // 만약 privateChats의 map타입에서 해당 senderName(메세지를 보낸사람)의 키가 일치한다면 
         if(privateChats.get(payloadData.senderName)){
+            // 해당 키의 값에 value를 push 
             privateChats.get(payloadData.senderName).push(payloadData);
+            // (push 한)쌓은 값을 기존의 privateChats state에 전달 
             setPrivateChats(new Map(privateChats));
         }else{
             let list =[];
+            // 만약 privateChats의 키와 다르다면 리스트이 값에 담아서 key와 value값을 privateChats에 담는다. 
             list.push(payloadData);
+            // privateChats의 키와 list의 value를 map타입으로 바꾸고 담아서 기존의 state에 전달한다. 
             privateChats.set(payloadData.senderName,list);
             setPrivateChats(new Map(privateChats));
         }
@@ -114,9 +121,11 @@ const Chat = () => {
     const handleMessage =(event)=>{
         const {value}=event.target;
         setUserData({...userData,"message": value});
+        console.log(userData)
     }
 
     const sendValue = () =>{
+        // 만약 stompClient에 소켓이 존재한다면 /app/message로 값을 전달  
             if (stompClient) {
               var chatMessage = {
                 senderName: userData.username,
@@ -127,9 +136,12 @@ const Chat = () => {
               stompClient.send("/app/message", {}, JSON.stringify(chatMessage));
               setUserData({...userData,"message": ""});
             }
+            console.log(userData)
     }
 
     const sendPrivateValue=()=>{
+        // 만약 stompClient에 소켓이 존재한다면 /app/private-message로 값을 전달 // 현재 tab상태를 전달한다. 
+        // tab은 -> 개인 아이디상태 or CHATROOM(PublicChat)을 나타냄 
         if (stompClient) {
           var chatMessage = {
             senderName: userData.username,
@@ -137,21 +149,28 @@ const Chat = () => {
             message: userData.message,
             status:"MESSAGE"
           };
-          
+          // 만약 클라이언트의 username과 tab의 이름이 다르다면 
           if(userData.username !== tab){
+            // privateChats의 키의 tab의 이름에 value값에 chatmessage 상태 값들을 저장 
             privateChats.get(tab).push(chatMessage);
+            // map 형으로 바꾼 후 state값에 전달 
             setPrivateChats(new Map(privateChats));
           }
           stompClient.send("/app/private-message", {}, JSON.stringify(chatMessage));
+          // 클라이언트의 상태의 데이터에 message를 담는다 ...userData이므로 message를 쌓는다. . 
           setUserData({...userData,"message": ""});
+          console.log(userData)
+          console.log("check")
         }
     }
 
+    // 등록할때 사용한다 username regist . 
     const handleUsername=(event)=>{
         const {value}=event.target;
         setUserData({...userData,"username": value});
     }
 
+    // 33번째 줄 connect 함수 실행 서버 연결 
     const registerUser=()=>{
         connect();
     }
@@ -159,14 +178,14 @@ const Chat = () => {
     return (
         <div className="container">
             {userData.connected?   // 삼항 연산자 만약 연결이되면 아래 화면 연결 안되면 register 화면 
-
             <div className="chat-box">
                 <div className="member-list">
                     <ul>       
                         {/*  왼쪽 상단 네비게이션 CHATROOM */}  {/*  왼쪽 상단 네비게이션 CHATROOM active 상태라면 member class 작동 */} 
                         <li onClick={()=>{setTab("CHATROOM")}} className={`member ${tab==="CHATROOM" && "active"}`}>Chatroom</li>
-                        {/*...은 참조형이다. 기존 privateChats의 값에서 가져온다. map함수이므로 keys를 통해서 가져온다.*/}
+                        {/*...은 참조형이다. 기존 privateChats의 값에서 가져온다. map함수이므로 keys를 통해서 가져온다. 키를 가져오는 것임  map -> ['cbh1124','cbh1111']*/}
                         {[...privateChats.keys()].map((name,index)=>(
+                            // keys -> name은 tab의 상태를 알린다. 
                             <li onClick={()=>{setTab(name)}} className={`member ${tab===name && "active"}`} key={index}>{name}</li>
                         ))}
                     </ul>
@@ -202,15 +221,20 @@ const Chat = () => {
                 {/* tab이 CHATROOM이 아니라면 개인 메시지 상태가 됨 */}
                 {tab!=="CHATROOM" && <div className="chat-content">
                     <ul className="chat-messages">
+                        {/* privateChats.get(tab) 탭에 해당하는 채팅 메시지를 출력한다.   */}
                         {[...privateChats.get(tab)].map((chat,index)=>(
+                            // 해당 채팅의 보내는 이름과 현재 클라이언트(userData)의 이름이 같다면  
                             <li className={`message ${chat.senderName === userData.username && "self"}`} key={index}>
+                                {/* 해당 채팅을 보내는 이름과 현재 클라이언트(userData)의 이름이 같지 않다면 상대 프로필 활성화 */}
                                 {chat.senderName !== userData.username && <div className="avatar">{chat.senderName}</div>}
+                                {/* 메세지는 그냥 보냄  */}
                                 <div className="message-data">{chat.message}</div>
+                                {/* 해당 채팅의 보내는 이름과 현재 클라이언트(userData)의 이름이 같다면 자기 프로필 활성화  */}
                                 {chat.senderName === userData.username && <div className="avatar self">{chat.senderName}</div>}
                             </li>
                         ))}
                     </ul>
-
+                    {/* 메세지를 보내는 곳  */}
                     <div className="send-message">
                         <input type="text" className="input-message" placeholder="enter the message" value={userData.message} onChange={handleMessage} /> 
                         <button type="button" className="send-button" onClick={sendPrivateValue}>send</button>
@@ -219,6 +243,7 @@ const Chat = () => {
 
             </div>
             :
+            // 연결이 되지 않았으므로 등록버튼이 뜨도록 한다. 
             <div className="register">
                 <input
                     id="user-name"
